@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Todo App</title>
+    <style>
+        .hidden {
+            display: none;
+        }
+        .vr {
+            border-left: 6px solid blue;
+            height: 95%;
+        }
+        ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            width: 300px;
+        }
+        li {
+            clear: both;
+        }
+        li button {
+            -webkit-appearance: none;
+            border: none;
+            outline: none;
+            color: red;
+            float: right;
+            cursor: pointer;
+            font-size: 20px;
+        }
+        .lists-wrapper, .todos-wrapper {
+            display: inline-block;
+            vertical-align: top;
+        }
+    </style>
+</head>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+<link rel="icon" type="image/png" href="https://to-do-cdn.microsoft.com/static-assets/c87265a87f887380a04cf21925a56539b29364b51ae53e089c3ee2b2180148c6/icons/logo.png">
+<body>
+<div class="container">
+    <div class="row">
+    <div class="col-sm">
+        <div class="card shadow p-2 mb-3 bg-white rounded">
+            <div class="lists-wrapper">
+            <h4> Todo App </h4>
+            <hr/>
+            <form id="listform" method="post" action="/todolists/create">
+                <input type="text" id="listname" name="listname"/>
+                <input type="submit" value="Create"/>
+            </form>
+            <hr/>
+
+            <div id="listerror" class="hidden">Something went wrong!</div>
+            <ul id="lists">
+                {% for list in lists %}
+                <li>
+                    <a href="/lists/{{ list.id }}">
+                        {{ list.name }}
+                    </a>
+                    <button class="delete-list" data-id="{{ list.id }}">&cross;</button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        </div>
+    </div>
+    <div class="col-sm">
+        <div class="card shadow p-2 mb-3 bg-white rounded">
+            <div class="todos-wrapper">
+            <h4> {{ active_list.name }} </h4>
+            <hr/>
+            <form id="form" method="post" action="/todos/create">
+                <input type="text" id="description" name="description"/>
+                <input type="submit" value="Create"/>
+            </form>
+            <hr/>
+
+            <div id="error" class="hidden">Something went wrong!</div>
+            <ul id="todos">
+                {% for todo in todos %}
+                <li>
+                    <input class="check-completed" data-id="{{ todo.id }}" type="checkbox" {% if todo.completed %} checked {% endif %} />
+                    {{ todo.description }}
+                    <button class="delete-todo" data-id="{{ todo.id }}">&cross;</button>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        </div>
+    </div>
+    <div class="col-sm">
+    </div>
+</div>
+</div>
+<script src="https://code.jquery.com/jquery-3.4.1.slim.min.js" integrity="sha384-J6qa4849blE2+poT4WnyKhv5vZF5SrPo0iEjwBvKU7imGFAV0wwj1yYfoRSJoZ+n" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.0/dist/umd/popper.min.js" integrity="sha384-Q6E9RHvbIyZFJoft+2mJbHaEWldlvI9IOYy5n3zV9zzTtmI3UksdQRVvoxMfooAo" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js" integrity="sha384-wfSDF2E50Y2D1uUdj0O3uMBJnjuUD4Ih7YwaYd1iqfktj0Uod8GCExl3Og8ifwB6" crossorigin="anonymous"></script>
+<script>
+    const listButtons = document.querySelectorAll('.delete-list');
+    for (let b = 0; b < listButtons.length; b++) {
+        const button = listButtons[b];
+        button.onclick = function(e) {
+            console.log('event', e);
+            const listId = e.target.dataset['id'];
+            fetch('/todolists/' + listId, {
+                method: 'DELETE'
+            }).then(function() {
+                document.getElementById('listerror').className = 'hidden';
+            }).catch(function() {
+                document.getElementById('listerror').className = '';
+            })
+        }
+    }
+
+    const buttons = document.querySelectorAll('.delete-todo');
+    for (let b = 0; b < buttons.length; b++) {
+        const button = buttons[b];
+        button.onclick = function(e) {
+            console.log('event', e);
+            const todoId = e.target.dataset['id'];
+            fetch('/todos/' + todoId, {
+                method: 'DELETE'
+            }).then(function() {
+                document.getElementById('error').className = 'hidden';
+            }).catch(function() {
+                document.getElementById('error').className = '';
+            })
+        }
+    }
+
+    const checkboxes = document.querySelectorAll('.check-completed');
+    for (let i = 0; i < checkboxes.length; i++) {
+        const checkbox = checkboxes[i];
+        checkbox.onchange = function(e) {
+            console.log('event', e);
+            const newCompleted = e.target.checked;
+            const todoId = e.target.dataset['id'];
+            fetch('/todos/' + todoId + '/set-completed', {
+                method: 'POST',
+                body: JSON.stringify({
+                    'completed': newCompleted
+                }),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(function() {
+                document.getElementById('error').className = 'hidden';
+            }).catch(function() {
+                document.getElementById('error').className = '';
+            })
+        }
+    }
+
+    const nameInput = document.getElementById('listname');
+    document.getElementById('listform').onsubmit = function(e) {
+        e.preventDefault();
+        const name = nameInput.value;
+        nameInput.value = '';
+        fetch('/todolists/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            'name': name,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => response.json())
+        .then(jsonResponse => {
+          console.log('response', jsonResponse);
+          li = document.createElement('li');
+          li.innerText = name;
+          document.getElementById('lists').appendChild(li);
+          document.getElementById('listerror').className = 'hidden';
+        })
+        .catch(function() {
+          document.getElementById('listerror').className = '';
+        })
+    }
+
+    const descInput = document.getElementById('description');
+    document.getElementById('form').onsubmit = function(e) {
+        e.preventDefault();
+        const desc = descInput.value;
+        descInput.value = '';
+        fetch('/todos/create', {
+          method: 'POST',
+          body: JSON.stringify({
+            'description': desc,
+          }),
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        })
+        .then(response => response.json())
+        .then(jsonResponse => {
+          console.log('response', jsonResponse);
+          li = document.createElement('li');
+          li.innerText = desc;
+          document.getElementById('todos').appendChild(li);
+          document.getElementById('error').className = 'hidden';
+        })
+        .catch(function() {
+          document.getElementById('error').className = '';
+        })
+    }
+</script>
+</body>
+</html>
